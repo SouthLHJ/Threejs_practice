@@ -3,6 +3,8 @@ import * as THREE from 'three';
 // GLTF를 사용하기 위해서는 전용로더인ㅌ GLTFLoader를 import해야한다.
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshObject } from './MeshObject';
+import { KeyController } from './KeyController'
+import { Player } from './Player'
 
 // 물리엔진
 import * as CANNON from 'cannon-es';
@@ -35,7 +37,7 @@ scene.add(camera);
 // const controls = new OrbitControls(camera, renderer.domElement);
 const gltfLoader = new GLTFLoader();
 const textureLoader = new THREE.TextureLoader();
-
+const keyController =  new KeyController();
 
 // Light
 const ambientLight = new THREE.AmbientLight('white', 1);
@@ -211,6 +213,16 @@ const magazine = new MeshObject({
 	mapSrc : '/models/magazine.jpg'
 })
 
+const player = new Player({
+	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
+	mass : 70,
+	width: 80,
+	height : 160,
+	depth : 30,
+});
+
 cannonObjects.push(groundMesh,
 	floorMesh,
 	wall_1,
@@ -221,6 +233,27 @@ cannonObjects.push(groundMesh,
 	ashTree1,
 	ashTree9,
 	magazine,)
+
+
+function move(){
+
+	// forward
+	if(keyController.keys['KeyW'] || keyController.keys['ArrowUp']){
+		player.walk(-3, 'forward')
+	}
+	// backward
+	if(keyController.keys['KeyS'] || keyController.keys['ArrowDown']){
+		player.walk(3, 'backward')
+	}
+	// left
+	if(keyController.keys['KeyA'] || keyController.keys['ArrowLeft']){
+		player.walk(3, 'left')
+	}
+	// right
+	if(keyController.keys['KeyD'] || keyController.keys['ArrowRight']){
+		player.walk(-3, 'right')
+	}
+}
 
 
 
@@ -240,7 +273,7 @@ function updateMovementValue(event){
 const euler = new THREE.Euler(0,0,0,'YXZ');
 const minPloarAngle = 0;
 const maxPolarAngle = Math.PI;
-function rotateCamera(){
+function moveCamera(){
 	euler.setFromQuaternion(camera.quaternion);
 	euler.y -= movementX * delta;
 	euler.x -= movementY * delta;
@@ -292,9 +325,14 @@ function draw() {
 		}
 	}
  
+	/**
+	 * Player
+	 */
+	if(player.cannonBody){
+		move();
+	}
 
-
-	rotateCamera()
+	moveCamera()
 	renderer.render(scene, camera);
 	renderer.setAnimationLoop(draw);
 }
