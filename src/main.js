@@ -51,12 +51,26 @@ scene.add(ambientLight,pointLight);
 const cannonWorld = new CANNON.World();
 cannonWorld.gravity.set(0, -10, 0); // Y 방향으로 지구의 중력 가속도인 -9.8에 가깝게 설정
 
+const defaultCannonMaterial = new CANNON.Material('default');
+const defaultContactMaterial = new CANNON.ContactMaterial(
+	defaultCannonMaterial,
+	defaultCannonMaterial,
+	{
+		friction : 1,
+		restitution : 0.2
+	}
+);
+cannonWorld.defaultContactMaterial = defaultContactMaterial;
+
+const cannonObjects = []; // 물리엔진 영향 받을 메쉬 관리
 
 // Mesh
 
 /** 땅 */
 const groundMesh = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
 	name : 'ground',
 	width : 100,
 	height : 0.1,
@@ -68,6 +82,8 @@ const groundMesh = new MeshObject({
 /** 방 */
 const floorMesh = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
 	name : 'floor',
 	width : 5,
 	height : 0.4,
@@ -79,6 +95,8 @@ const floorMesh = new MeshObject({
 /** 벽 */
 const wall_1 = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
 	name : 'wall 1',
 	width : 5,
 	height : 3,
@@ -88,6 +106,8 @@ const wall_1 = new MeshObject({
 
 const wall_2 = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
 	name : 'wall 2',
 	width : 0.2,
 	height : 3,
@@ -98,6 +118,9 @@ const wall_2 = new MeshObject({
 /** 사물 */
 const desk = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
+	mass : 30,
 	loader : gltfLoader,
 	name : 'desk',
 	width : 1.8,
@@ -112,6 +135,9 @@ const desk = new MeshObject({
 
 const lamp =  new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
+	mass : 20,
 	loader : gltfLoader,
 	name : 'lamp',
 	width : 0.5,
@@ -125,6 +151,9 @@ const lamp =  new MeshObject({
 
 const roboticVaccum = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
+	mass : 10,
 	loader : gltfLoader,
 	name : 'roboticVaccum',
 	width : 0.5,
@@ -138,6 +167,8 @@ const roboticVaccum = new MeshObject({
 
 const ashTree1 = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
 	loader : gltfLoader,
 	name : 'ashTree1',
 	width : 1,
@@ -150,6 +181,8 @@ const ashTree1 = new MeshObject({
 });
 const ashTree9 = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
 	loader : gltfLoader,
 	name : 'ashTree9',
 	width : 1,
@@ -163,6 +196,9 @@ const ashTree9 = new MeshObject({
 
 const magazine = new MeshObject({
 	scene,
+	cannonWorld,
+	cannonMaterial : defaultCannonMaterial,
+	mass : 0.5,
 	loader : textureLoader,
 	name : 'magazine',
 	width: 0.2,
@@ -170,11 +206,21 @@ const magazine = new MeshObject({
 	depth : 0.29,
 	x : -2.1,
 	z: 1.5,
-	y : 1.2,
+	y : 2.2,
 	rotationY : THREE.MathUtils.degToRad(90),
 	mapSrc : '/models/magazine.jpg'
 })
 
+cannonObjects.push(groundMesh,
+	floorMesh,
+	wall_1,
+	wall_2,
+	desk,
+	lamp,
+	roboticVaccum,
+	ashTree1,
+	ashTree9,
+	magazine,)
 
 
 
@@ -221,8 +267,33 @@ function setMode(mode){
 // Draw
 const clock = new THREE.Clock();
 let delta;
+
 function draw() {
 	delta = clock.getDelta();
+
+	// 물리 시뮬레이션을 업데이트하는 시간 간격을 고정값으로 넣어주면 된다.
+	let cannonStepTime = 1/60;
+	if(delta<0.01)cannonStepTime=1/120;
+	// cannonWorld의 step 메서드는 특정 시간 간격마다 호출되어,
+	// 물리 세계의 상태를 지속적으로 업데이트
+	cannonWorld.step(cannonStepTime, delta, 3); // 세번째 인자는 움직임에차이가 생길 경우, 보정을 시도하는 횟수
+	
+	for( const object  of cannonObjects){
+		
+		if(object.cannonBody){
+		/* 
+			cannonBody의 position을 mesh들이 따라가도록 설정한다. 
+			cannonBody는 mesh와는 별개로써 하나의 투명 물체로 만들어져있다.
+			cannon-es 로 만들어진 body는 물리엔진에 맞춰 position이 변경되지만 mesh는 변경되지않으므로
+			수동으로 mesh의 위치를 변경시켜줘야한다.
+		*/ 
+			object.mesh.position.copy(object.cannonBody.position);
+			object.mesh.quaternion.copy(object.cannonBody.quaternion)			 ;
+		}
+	}
+ 
+
+
 	rotateCamera()
 	renderer.render(scene, camera);
 	renderer.setAnimationLoop(draw);
